@@ -30,6 +30,12 @@ type Level int32
 // Verbose is a shim
 type Verbose bool
 
+type config struct {
+	zapConfig       zap.Config
+	v               int
+	alsologtostderr bool
+}
+
 var (
 	logger *zap.Logger
 	sugar  *zap.SugaredLogger
@@ -37,22 +43,22 @@ var (
 	once   sync.Once
 )
 
-type config struct {
-	zapConfig       zap.Config
-	v               int
-	alsologtostderr bool
+// init as the global no-ops logger so that unit test will not crash
+func init() {
+	logger = zap.L()
+	sugar = zap.S()
 }
 
 // Singleton inits an unique logger
 func Singleton() {
 	once.Do(func() {
-	    c.zapConfig = zap.NewProductionConfig()
+		c.zapConfig = zap.NewProductionConfig()
 
-	    // change time from ns to formatted
-	    c.zapConfig.EncoderConfig.TimeKey = "time"
-	    c.zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		// change time from ns to formatted
+		c.zapConfig.EncoderConfig.TimeKey = "time"
+		c.zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
-        // due to gaps between zap and klog
+		// due to gaps between zap and klog
 		if c.v > 0 {
 			c.zapConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 		}
@@ -99,7 +105,7 @@ func (v Verbose) Info(args ...interface{}) {
 //go:noinline
 func (v Verbose) Infoln(args ...interface{}) {
 	if bool(v) {
-		s := fmt.Sprint(args)
+		s := fmt.Sprint(args...)
 		sugar.Debug(s, "\n")
 	}
 }
@@ -127,7 +133,7 @@ func InfoDepth(depth int, args ...interface{}) {
 // Infoln is a shim
 //go:noinline
 func Infoln(args ...interface{}) {
-	s := fmt.Sprint(args)
+	s := fmt.Sprint(args...)
 	sugar.Info(s, "\n")
 }
 
@@ -152,7 +158,7 @@ func WarningDepth(depth int, args ...interface{}) {
 // Warningln is a shim
 //go:noinline
 func Warningln(args ...interface{}) {
-	s := fmt.Sprint(args)
+	s := fmt.Sprint(args...)
 	sugar.Warn(s, "\n")
 }
 
@@ -177,7 +183,7 @@ func ErrorDepth(depth int, args ...interface{}) {
 // Errorln is a shim
 //go:noinline
 func Errorln(args ...interface{}) {
-	s := fmt.Sprint(args)
+	s := fmt.Sprint(args...)
 	sugar.Error(s, "\n")
 }
 
@@ -204,7 +210,7 @@ func FatalDepth(depth int, args ...interface{}) {
 // Fatalln is a shim
 //go:noinline
 func Fatalln(args ...interface{}) {
-	s := fmt.Sprint(args)
+	s := fmt.Sprint(args...)
 	sugar.Error(s, "\n")
 	os.Exit(255)
 }
@@ -233,7 +239,7 @@ func ExitDepth(depth int, args ...interface{}) {
 // Exitln is a shim
 //go:noinline
 func Exitln(args ...interface{}) {
-	s := fmt.Sprint(args)
+	s := fmt.Sprint(args...)
 	sugar.Error(s, "\n")
 	os.Exit(1)
 }
@@ -244,4 +250,3 @@ func Exitf(format string, args ...interface{}) {
 	logger.Sugar().Errorf(format, args...)
 	os.Exit(1)
 }
-

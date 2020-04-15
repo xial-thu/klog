@@ -17,6 +17,8 @@ initialization: for example, in main.go
 	klog.Singleton()
 ```
 
+If `Singleton()` is not called, the default global no-ops logger will work, which means you are not able to see any real log.
+
 Due to some gaps between klog and zap, parameters shall be converted, and the conversion must be done after `flag.Parse()`. `klog.Singleton()` inits an unique global logger whose configuration is slightly different from default zap production configuration at:
 
 1. `Timekey` is set to "time"
