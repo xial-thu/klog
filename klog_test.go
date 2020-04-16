@@ -47,7 +47,6 @@ func TestProduction(t *testing.T) {
 }
 
 func TestWith(t *testing.T) {
-	InitFlags(nil)
 	Singleton()
 
 	type S struct {
@@ -125,4 +124,51 @@ func TestNoOps(t *testing.T) {
 	V(2).Info(arg)
 	V(2).Infoln(arg)
 	V(2).Infof("%s", arg)
+}
+
+func BenchmarkWith(b *testing.B) {
+	Singleton()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		With(struct {
+			ID   string
+			Name string
+		}{"0001", "hello"}).Info("world")
+	}
+}
+
+func BenchmarkWithFields(b *testing.B) {
+	Singleton()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		WithFields("ID", "0001", "Name", "hello").Info("world")
+	}
+}
+
+func BenchmarkWithAll(b *testing.B) {
+	Singleton()
+	type s struct {
+		ID   string
+		Name string
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		WithAll(s{"0001", "hello"}).Info("world")
+	}
+}
+
+func BenchmarkContextWith(b *testing.B) {
+	Singleton()
+	type s struct {
+		ID   string
+		Name string
+	}
+	b.ResetTimer()
+	newLogger := With(struct {
+		ID   string
+		Name string
+	}{"0001", "hello"})
+	for i := 0; i < b.N; i++ {
+		newLogger.Info("world")
+	}
 }

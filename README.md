@@ -11,14 +11,15 @@ import this package by `github.com/xial-thu/klog`
 ### initialization
 
 for example, in main.go
-```golang
-    // Unchanged
-	klog.InitFlags(nil)
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "path to Kubernetes config file")
-	flag.Parse()
 
-    // Append a new API
-	klog.Singleton()
+```golang
+// Unchanged
+klog.InitFlags(nil)
+flag.StringVar(&kubeconfig, "kubeconfig", "", "path to Kubernetes config file")
+flag.Parse()
+
+// Append a new API
+klog.Singleton()
 ```
 
 If `Singleton()` is not called, the default global no-ops logger will work, which means you are not able to see any real log.
@@ -38,6 +39,7 @@ Not all flags defined in klog is supported, or rather say, not all the flags sti
 ### structured logging
 
 There're 3 APIs:
+
 * `With()`: parse each field and value from input. `WithFields(struct{A string}{"hi"})` will output `"A":"hi"`. If you care the fields in your struct and hope to extract them, use `With()`
 * `WithAll()`: sugar of `zap.Any()`. e.g. `WithFields(struct{A string}{"hi"})` will output `"":{"A":"hi"}`. If you want to record the name of your struct, use `WithAll()`
 * `WithFields()`: e.g. `WithFields("ID", 1, "name": "hi")`, just another sugar of `sugar.With()`
@@ -53,32 +55,48 @@ Tips of `With()`:
 Some examples of `With()`:
 
 ```golang
-    type S struct {
-		A int
-		B string
-	}
-    type Q struct {
-		D ID
-	}
-    s := S{
-		A: 10,
-		B: "abc",
-	}
-    q := Q{
-		D: ID(1),
-	}
-    c := ""
+type S struct {
+	A int
+	B string
+}
+type Q struct {
+	D ID
+}
+s := S{
+	A: 10,
+	B: "abc",
+}
+q := Q{
+	D: ID(1),
+}
+c := ""
     
-    // struct args
-	With(s).Info(c)                         // "A":10,"B":"abc"
-    With(s, q).Info(c)    // "A":10,"B":"abc","D":1
-    // anomony
-    With(struct {
-		A int
-		B int
-	}{1, 2}).Info(c) // "A":1,"B":2
-    // map args
-    With(map[string]int{"A":1}).Info(c)  // "A":1
+// struct args
+With(s).Info(c) // "A":10,"B":"abc"
+With(s, q).Info(c) // "A":10,"B":"abc","D":1
+// anomony
+With(struct {
+	A int
+	B int
+}{1, 2}).Info(c) // "A":1,"B":2
+// map args
+With(map[string]int{"A":1}).Info(c) // "A":1
+```
+
+### performance of `With()`
+
+|  case | ns/op  | B/op | allocs/op |
+|  ---- | ----  | ---- | ---- |
+| With every time | 3121 |2884 | 20|
+| WithField every time | 2239 |1568|9|
+|WithAll|3215|2642|14|
+|With once|573|7|1|
+
+Due to reflect, `With()` is slow. It indicates us that it's better to write like this instead of parsing interfaces every time.
+
+```golang
+newLogger := klog.With(something)
+newLogger.Info(something)
 ```
 
 ## limitation
