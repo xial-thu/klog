@@ -75,7 +75,7 @@ func TestWith(t *testing.T) {
 		D: ID(1),
 	}
 
-	l1 := WithFields("A", 10, "B", "abc")
+	l1 := WithFields("B", "abc")
 	l1.Info("hello")
 	WithFields("A", 10, "B", "abc").Info(c) // "A":10,"B":"abc"
 	With(s).Info(c)                         // "A":10,"B":"abc"
