@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
 	"sync"
 
 	"go.uber.org/zap"
@@ -249,4 +250,53 @@ func Exitln(args ...interface{}) {
 func Exitf(format string, args ...interface{}) {
 	logger.Sugar().Errorf(format, args...)
 	os.Exit(1)
+}
+
+// WithAll fills each arg directly without parsing fields and values
+// Only valid for exported fields
+func WithAll(args ...interface{}) *zap.SugaredLogger {
+	newLogger := logger
+	for _, arg := range args {
+		t := reflect.TypeOf(arg)
+		newLogger = newLogger.With(zap.Any(t.Name(), arg))
+	}
+	return newLogger.Sugar()
+}
+
+// With fills k-v of a struct into a logger, however it's relatively slow
+// Only struct and map will be accepted:
+//   * struct: only exported field will be added
+//   * map: only accept string type as key
+func With(args ...interface{}) *zap.SugaredLogger {
+	newLogger := logger
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		t := reflect.TypeOf(arg)
+		v := reflect.ValueOf(arg)
+		switch t.Kind() {
+		case reflect.Struct:
+			for i := 0; i < t.NumField(); i++ {
+				k := t.Field(i).Name
+				if f := v.Field(i); f.CanInterface() {
+					newLogger = newLogger.With(zap.Any(k, f.Interface()))
+				}
+			}
+		case reflect.Map:
+			iter := v.MapRange()
+			for iter.Next() {
+				if key, val := iter.Key(), iter.Value(); key.Kind() == reflect.String && val.CanInterface() {
+					newLogger = newLogger.With(zap.Any(key.String(), val.Interface()))
+				}
+			}
+		default:
+			// other types are not supported yet
+		}
+	}
+	return newLogger.Sugar()
+}
+
+// WithFields requires user to fill in k-v pairs
+func WithFields(args ...interface{}) *zap.SugaredLogger {
+	newSugar := sugar.With(args...)
+	return newSugar
 }

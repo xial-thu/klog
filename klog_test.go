@@ -46,7 +46,65 @@ func TestProduction(t *testing.T) {
 	V(2).Infof("%s", arg)
 }
 
-func TestRobust(t *testing.T) {
+func TestWith(t *testing.T) {
+	InitFlags(nil)
+	Singleton()
+
+	type S struct {
+		A int
+		B string
+	}
+	type ID int64
+	type W struct {
+		C S
+		D ID
+	}
+	type Q struct {
+		D ID
+	}
+
+	c := "hello"
+	s := S{
+		A: 10,
+		B: "abc",
+	}
+	w := W{
+		C: s,
+		D: ID(1),
+	}
+	q := Q{
+		D: ID(1),
+	}
+
+	l1 := WithFields("A", 10, "B", "abc")
+	l1.Info("hello")
+	WithFields("A", 10, "B", "abc").Info(c) // "A":10,"B":"abc"
+	With(s).Info(c)                         // "A":10,"B":"abc"
+	WithAll(s).Info(c)                      // "S":{"A":10,"B":"abc"}
+
+	// why not split into args
+	With(w).Info(c)       // "C":{"A":10,"B":"abc"},"D":1}
+	WithAll(w).Info(c)    // "W":{"C":{"A":10,"B":"abc"},"D":1}
+	With(s, q).Info(c)    // "A":10,"B":"abc","D":1
+	WithAll(s, q).Info(c) // "S":{"A":10,"B":"abc"},"Q":{"D":1}
+
+	// anomony
+	With(struct {
+		A int
+		B int
+	}{1, 2}).Info(c) // "A":1,"B":2
+	WithAll(struct {
+		A int
+		B int
+	}{1, 2}).Info(c) // "":{"A":1,"B":2}
+
+	type Y map[string]string
+	y := Y{"a": "b", "c": "d"}
+	With(y, c, map[struct{ A string }]int{{A: "a"}: 1, {A: "b"}: 2}).Info(c)
+	WithAll(y, c, map[struct{ A string }]int{{A: "a"}: 1, {A: "b"}: 2}).Info(c)
+}
+
+func TestNoOps(t *testing.T) {
 	arg := fmt.Errorf("hello")
 	arg2 := fmt.Errorf("world")
 	Error(arg)
