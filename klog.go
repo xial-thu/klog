@@ -70,7 +70,7 @@ func Singleton() *Klogger {
 		// due to gaps between zap and klog
 		if c.v > 0 {
 			c.zapConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
-			klogger.level.Set(Level(c.zapConfig.Level.Level()))
+			klogger.level.Set(Level(c.v))
 		}
 		if !c.alsologtostderr {
 			c.zapConfig.OutputPaths = []string{"stdout"}
