@@ -15,13 +15,13 @@ limitations under the License.
 package klog
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"reflect"
 	"sync"
 	"sync/atomic"
 
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -32,21 +32,35 @@ type Level int32
 // Verbose is a shim
 type Verbose bool
 
-type config struct {
-	zapConfig       zap.Config
-	v               int
+// Config is the mixture of zap config and klog config
+type Config struct {
+	// zap config
+	zapConfig zap.Config
+	level     Level
+
+	// klog config
+	v               int32
 	alsologtostderr bool
 }
 
 // Klogger wraps a sugarlogger
 type Klogger struct {
-	sugar *zap.SugaredLogger
-	level Level
+	sugar  *zap.SugaredLogger
+	config Config
 }
+
+const (
+	// MinLevel 0: default level, forbids DEBUG log
+	MinLevel Level = iota
+	_
+	_
+	_
+	// MaxLevel 4: max level V(4)
+	MaxLevel
+)
 
 var (
 	klogger *Klogger
-	c       config
 	once    sync.Once
 )
 
@@ -54,30 +68,36 @@ var (
 func init() {
 	klogger = &Klogger{
 		sugar: zap.S(),
-		level: 0,
+		config: Config{
+			level: 0,
+		},
 	}
 }
 
 // Singleton inits an unique logger
 func Singleton() *Klogger {
 	once.Do(func() {
-		c.zapConfig = zap.NewProductionConfig()
+		klogger.config.level.set(Level(klogger.config.v))
+		if l := klogger.config.level; l < MinLevel || l > MaxLevel {
+			panic(fmt.Errorf("FATAL: 'v' must be in the range [0, 4]"))
+		}
+
+		klogger.config.zapConfig = zap.NewProductionConfig()
 
 		// change time from ns to formatted
-		c.zapConfig.EncoderConfig.TimeKey = "time"
-		c.zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		klogger.config.zapConfig.EncoderConfig.TimeKey = "time"
+		klogger.config.zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+		// always set to debug level
+		klogger.config.zapConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 
 		// due to gaps between zap and klog
-		if c.v > 0 {
-			c.zapConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
-			klogger.level.Set(Level(c.v))
-		}
-		if !c.alsologtostderr {
-			c.zapConfig.OutputPaths = []string{"stdout"}
+		if !klogger.config.alsologtostderr {
+			klogger.config.zapConfig.OutputPaths = []string{"stdout"}
 		}
 
 		// trace the real source caller due to munual inline is not supported
-		zlogger, err := c.zapConfig.Build(zap.AddCallerSkip(1))
+		zlogger, err := klogger.config.zapConfig.Build(zap.AddCallerSkip(1))
 		if err != nil {
 			panic(err)
 		}
@@ -87,10 +107,13 @@ func Singleton() *Klogger {
 	return klogger
 }
 
-// InitFlags is a shim
-func InitFlags(flagset *flag.FlagSet) {
-	flag.IntVar(&c.v, "v", 0, "verbosity of info log")
-	flag.BoolVar(&c.alsologtostderr, "alsologtostderr", true, "also write logs to stderr, default to true")
+// InitFlags is a shim, only accepts
+func InitFlags(flagset *pflag.FlagSet) {
+	if flagset == nil {
+		flagset = pflag.CommandLine
+	}
+	pflag.Int32Var(&klogger.config.v, "v", 0, "verbosity of info log")
+	pflag.BoolVar(&klogger.config.alsologtostderr, "alsologtostderr", true, "also write logs to stderr, default to true")
 }
 
 // Flush is a shim
@@ -98,8 +121,24 @@ func Flush() {
 	klogger.sugar.Sync()
 }
 
+// SetLevel updates level on the fly
+func SetLevel(v Level) {
+	klogger.SetLevel(v)
+}
+
+// SetLevel updates level on the fly
+func (k *Klogger) SetLevel(v Level) {
+	if v < MinLevel || v > MaxLevel {
+		k.Warningf("failed setting level: expect [0, 4], get %d", v)
+		return
+	}
+	if k.config.level.get() != v {
+		k.config.level.set(v)
+	}
+}
+
 // Set sets the value of the Level.
-func (l *Level) Set(val Level) {
+func (l *Level) set(val Level) {
 	atomic.StoreInt32((*int32)(l), int32(val))
 }
 
@@ -110,12 +149,12 @@ func (l *Level) get() Level {
 
 // V is a shim
 func V(level Level) Verbose {
-	return Verbose(level <= klogger.level.get())
+	return Verbose(level <= klogger.config.level.get())
 }
 
 // V is a shim
 func (k *Klogger) V(level Level) Verbose {
-	return Verbose(level <= k.level.get())
+	return Verbose(level <= k.config.level.get())
 }
 
 // Info is a shim

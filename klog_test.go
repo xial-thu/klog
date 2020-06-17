@@ -21,7 +21,7 @@ import (
 
 func TestProduction(t *testing.T) {
 	InitFlags(nil)
-	c.v = 1 // enable DEBUG level
+	klogger.config.v = 1 // enable DEBUG level
 	Singleton()
 
 	arg := fmt.Errorf("hello")
@@ -124,6 +124,16 @@ func TestNoOps(t *testing.T) {
 	V(2).Info(arg)
 	V(2).Infoln(arg)
 	V(2).Infof("%s", arg)
+}
+
+func TestUpdateLevel(t *testing.T) {
+	Singleton()
+	Infof("should-always-print")
+	V(1).Infof("should-not-print")
+	SetLevel(2)
+	SetLevel(5)
+	SetLevel(-1)
+	V(1).Infof("should-print")
 }
 
 func BenchmarkWith(b *testing.B) {
