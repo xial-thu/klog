@@ -69,7 +69,9 @@ func init() {
 	klogger = &Klogger{
 		sugar: zap.S(),
 		config: Config{
-			level: 0,
+			level:           0,
+			v:               0,
+			alsologtostderr: true,
 		},
 	}
 }
@@ -112,8 +114,8 @@ func InitFlags(flagset *pflag.FlagSet) {
 	if flagset == nil {
 		flagset = pflag.CommandLine
 	}
-	pflag.Int32Var(&klogger.config.v, "v", 0, "verbosity of info log")
-	pflag.BoolVar(&klogger.config.alsologtostderr, "alsologtostderr", true, "also write logs to stderr, default to true")
+	pflag.Int32Var(&klogger.config.v, "v", klogger.config.v, "verbosity of info log")
+	pflag.BoolVar(&klogger.config.alsologtostderr, "alsologtostderr", klogger.config.alsologtostderr, "also write logs to stderr, default to true")
 }
 
 // Flush is a shim
