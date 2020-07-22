@@ -114,8 +114,8 @@ func InitFlags(flagset *pflag.FlagSet) {
 	if flagset == nil {
 		flagset = pflag.CommandLine
 	}
-	pflag.Int32Var(&klogger.config.v, "v", klogger.config.v, "verbosity of info log")
-	pflag.BoolVar(&klogger.config.alsologtostderr, "alsologtostderr", klogger.config.alsologtostderr, "also write logs to stderr, default to true")
+	flagset.Int32Var(&klogger.config.v, "v", klogger.config.v, "verbosity of info log")
+	flagset.BoolVar(&klogger.config.alsologtostderr, "alsologtostderr", klogger.config.alsologtostderr, "also write logs to stderr, default to true")
 }
 
 // Flush is a shim
